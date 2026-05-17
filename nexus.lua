@@ -5,7 +5,7 @@ local player = Players.LocalPlayer
 -- GITHUB ONLINE WHITELIST SYSTEM
 ------------------------------------------------
 -- ERSETZE DIESEN LINK MIT DEINEM RAW-GITHUB-LINK:
-local WHITELIST_URL = ""
+local WHITELIST_URL = "https://raw.githubusercontent.com/nexus113fdfcs-beep/Nexus/refs/heads/main/whitelist.txt"
 
 local function checkWhitelist()
     local success, content = pcall(function()
