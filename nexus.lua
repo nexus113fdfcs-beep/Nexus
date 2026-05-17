@@ -5,7 +5,7 @@ local player = Players.LocalPlayer
 -- GITHUB ONLINE WHITELIST SYSTEM
 ------------------------------------------------
 -- ERSETZE DIESEN LINK MIT DEINEM RAW-GITHUB-LINK:
-local WHITELIST_URL = "https://raw.githubusercontent.com/nexus113fdfcs-beep/Nexus/refs/heads/main/whitelist.txt"
+local WHITELIST_URL = ""
 
 local function checkWhitelist()
     local success, content = pcall(function()
@@ -55,7 +55,8 @@ local Config = {
 	AimbotSmoothness = 1,
 	TeamCheck = false,
 	AimbotFOV = 100,
-	ShowFOV = true
+	ShowFOV = true,
+	OgSniperActive = false
 }
 
 local Theme = {
@@ -364,6 +365,58 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ------------------------------------------------
+-- EMERGENCY HAMBURG - SCOPE & FORWARD ZOOM SYSTEM
+------------------------------------------------
+local defaultFOV = 70
+local zoomFOV = 25
+
+RunService.Heartbeat:Connect(function()
+    local c = player.Character
+    if not c then return end
+    
+    for _, t in pairs(c:GetChildren()) do
+        if t:IsA("Tool") then
+            if Config.OgSniperActive then
+                pcall(function() 
+                    t:SetAttribute("Scope", false)
+                    t:SetAttribute("HasScope", false)
+                    t:SetAttribute("AimDelay", 0)
+                end)
+                
+                local sc = t:FindFirstChild("Scope") or t:FindFirstChild("Zielfernrohr")
+                if sc then 
+                    for _, p in pairs(sc:GetDescendants()) do
+                        if p:IsA("BasePart") then 
+                            pcall(function() p.LocalTransparencyModifier = 1 end) 
+                        end
+                    end 
+                end
+            end
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    local c = player.Character
+    if Config.OgSniperActive and c and c:FindFirstChildOfClass("Tool") then
+        local currentTool = c:FindFirstChildOfClass("Tool")
+        if currentTool.Name:lower():find("sniper") or currentTool:IsA("Sniper") then
+            local isAiming = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+            if isAiming then
+                camera.FieldOfView = camera.FieldOfView + (zoomFOV - camera.FieldOfView) * 0.25
+            else
+                camera.FieldOfView = camera.FieldOfView + (defaultFOV - camera.FieldOfView) * 0.25
+            end
+            return
+        end
+    end
+    
+    if not Config.OgSniperActive and activePage == "Visual" then
+        -- Erlaubt normalen FOV-Slider-Betrieb, wenn OG Sniper aus ist
+    end
+end)
+
+------------------------------------------------
 -- GENERATE TABS & PAGES
 ------------------------------------------------
 local Home = createPage("Home")
@@ -401,8 +454,13 @@ createToggle(AimbotTab, "Show FOV Ring", true, function(state)
 end)
 createToggle(AimbotTab, "Team Check", false, function(state) Config.TeamCheck = state end)
 
+-- HOOK: TOGGLE FÜR DEINEN GEFIXTEN EH-OG-SNIPER MIT FORWARD-ZOOM
+createToggle(AimbotTab, "OG SNIPER", false, function(state)
+	Config.OgSniperActive = state
+end)
+
 -- 3. Visuals Module
-createSlider(Visual, "Field of View (FOV)", 30, 120, 70, function(value) camera.FieldOfView = value end)
+createSlider(Visual, "Field of View (FOV)", 30, 120, 70, function(value) defaultFOV = value camera.FieldOfView = value end)
 createActionButton(Visual, "FULLBRIGHT", function() Lighting.Brightness = 3; Lighting.ClockTime = 14; Lighting.GlobalShadows = false end)
 createToggle(Visual, "Night Vision", false, function(state)
 	if state then
@@ -417,7 +475,7 @@ createToggle(Visual, "Night Vision", false, function(state)
 	end
 end)
 
--- 4. Skinchanger Module (NEUE MANUELLE KLON-METHODE)
+-- 4. Skinchanger Module
 local targetContainer = Instance.new("Frame")
 targetContainer.Size = UDim2.new(1, -10, 0, 110); targetContainer.BackgroundColor3 = Theme.ButtonBG; targetContainer.Parent = SkinchangerTab
 Instance.new("UICorner", targetContainer).CornerRadius = UDim.new(0, 8)
@@ -453,22 +511,18 @@ cloneBtn.MouseButton1Click:Connect(function()
 	if success and targetId then
 		local myChar = player.Character
 		if myChar then
-			-- Sicheres Laden der Charakter-Modell-Dateien von Roblox
 			local model = Players:CreateHumanoidModelFromUserId(targetId)
 			if model then
-				-- Lösche deine aktuelle Kleidung, Hüte, Haare & Körperfarben
 				for _, obj in pairs(myChar:GetChildren()) do
 					if obj:IsA("Shirt") or obj:IsA("Pants") or obj:IsA("Accessory") or obj:IsA("ShirtGraphic") or obj:IsA("BodyColors") then
 						obj:Destroy()
 					end
 				end
 				
-				-- Kopiere alles Neue aus dem geladenen Modell
 				for _, obj in pairs(model:GetChildren()) do
 					if obj:IsA("Shirt") or obj:IsA("Pants") or obj:IsA("ShirtGraphic") or obj:IsA("BodyColors") then
 						obj:Clone().Parent = myChar
 					elseif obj:IsA("Accessory") then
-						-- Lässt Hüte/Haare per Roblox-Engine an den Kopf anpassen
 						myChar.Humanoid:AddAccessory(obj:Clone())
 					end
 				end
