@@ -1,14 +1,48 @@
 local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+------------------------------------------------
+-- GITHUB ONLINE WHITELIST SYSTEM
+------------------------------------------------
+-- ERSETZE DIESEN LINK MIT DEINEM RAW-GITHUB-LINK:
+local WHITELIST_URL = ""
+
+local function checkWhitelist()
+    local success, content = pcall(function()
+        return game:HttpGet(WHITELIST_URL)
+    end)
+
+    if not success or not content then
+        player:Kick("Nexus Hub v3: Fehler beim Laden der Whitelist von GitHub!")
+        return false
+    end
+
+    local userIdStr = tostring(player.UserId)
+    
+    -- Überprüft, ob die User-ID in der GitHub-Datei existiert
+    if not string.find(content, userIdStr) then
+        player:Kick("Nexus Hub v3: Du bist nicht auf der Whitelist! (ID: " .. userIdStr .. ")")
+        return false
+    end
+
+    return true
+end
+
+-- Starte den Check. Wenn er fehlschlägt, bricht das restliche Skript ab.
+if not checkWhitelist() then return end
+
+------------------------------------------------
+-- RESTE DES SKRIPTS (Wird nur ausgeführt, wenn Whitelist okay ist)
+------------------------------------------------
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 
-local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local guiParent = player:WaitForChild("PlayerGui")
 
--- Bereinige alte Versionen, um Layer-Chaos zu verhindern
+-- Bereinige alte Versionen
 if guiParent:FindFirstChild("NEXUS_V3_ULTRA") then
 	guiParent["NEXUS_V3_ULTRA"]:Destroy()
 end
@@ -19,7 +53,9 @@ end
 local Config = {
 	AimbotEnabled = false,
 	AimbotSmoothness = 1,
-	TeamCheck = false
+	TeamCheck = false,
+	AimbotFOV = 100,
+	ShowFOV = true
 }
 
 local Theme = {
@@ -39,6 +75,12 @@ local Theme = {
 -- SKYBOX DATA
 ------------------------------------------------
 local Skyboxes = {
+	["🔵 Blue"] = {
+		SkyboxBk="rbxassetid://600830446", SkyboxDn="rbxassetid://600831635", SkyboxFt="rbxassetid://600832720", SkyboxLf="rbxassetid://600886090", SkyboxRt="rbxassetid://600833862", SkyboxUp="rbxassetid://600835177"
+	},
+	["⭐ Night"] = {
+		SkyboxBk="rbxassetid://12064152", SkyboxDn="rbxassetid://12064152", SkyboxFt="rbxassetid://12064152", SkyboxLf="rbxassetid://12064152", SkyboxRt="rbxassetid://12064152", SkyboxUp="rbxassetid://12064152"
+	},
 	["🟣 Purple"] = {
 		SkyboxBk="rbxassetid://16553658937", SkyboxDn="rbxassetid://16553660713", SkyboxFt="rbxassetid://16553662144", SkyboxLf="rbxassetid://16553664042", SkyboxRt="rbxassetid://16553665766", SkyboxUp="rbxassetid://16553667750"
 	},
@@ -57,7 +99,7 @@ local Skyboxes = {
 }
 
 ------------------------------------------------
--- CORE SCREEN GUI
+-- CORE SCREEN GUI & VISUAL FOV RING
 ------------------------------------------------
 local gui = Instance.new("ScreenGui")
 gui.Name = "NEXUS_V3_ULTRA"
@@ -65,12 +107,29 @@ gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = guiParent
 
+local fovRing = Instance.new("Frame")
+fovRing.AnchorPoint = Vector2.new(0.5, 0.5)
+fovRing.BackgroundColor3 = Theme.Accent
+fovRing.BackgroundTransparency = 1
+fovRing.Size = UDim2.new(0, Config.AimbotFOV * 2, 0, Config.AimbotFOV * 2)
+fovRing.Position = UDim2.new(0.5, 0, 0.5, 0)
+fovRing.Visible = Config.ShowFOV
+fovRing.Parent = gui
+
+local fovCorner = Instance.new("UICorner", fovRing)
+fovCorner.CornerRadius = UDim.new(1, 0)
+
+local fovStroke = Instance.new("UIStroke", fovRing)
+fovStroke.Color = Theme.Accent
+fovStroke.Thickness = 1
+fovStroke.Transparency = 0.5
+
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 850, 0, 500)
 main.Position = UDim2.new(0.5, -425, 0.5, -250)
 main.BackgroundColor3 = Theme.MainBG
 main.ClipsDescendants = true
-main.Parent = main
+main.Parent = gui
 
 local mainCorner = Instance.new("UICorner", main)
 mainCorner.CornerRadius = UDim.new(0, 12)
@@ -129,10 +188,12 @@ local function notify(txt)
 	TweenService:Create(s, TweenInfo.new(0.3), {Transparency = 0.4}):Play()
 	TweenService:Create(t, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
 	task.delay(3, function()
-		TweenService:Create(n, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-		TweenService:Create(s, TweenInfo.new(0.3), {Transparency = 1}):Play()
-		TweenService:Create(t, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-		task.wait(0.3); n:Destroy()
+		if n then
+			TweenService:Create(n, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+			TweenService:Create(s, TweenInfo.new(0.3), {Transparency = 1}):Play()
+			TweenService:Create(t, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+			task.wait(0.3); if n then n:Destroy() end
+		end
 	end)
 end
 
@@ -263,11 +324,11 @@ local function createSlider(parent, text, min, max, default, callback)
 end
 
 ------------------------------------------------
--- INTEGRATED AIMBOT ENGINE
+-- CAMERA BASED AIMBOT ENGINE
 ------------------------------------------------
-local function getClosestPlayer()
+local function getClosestPlayerToCenter()
 	local closestTarget = nil
-	local shortestDistance = math.huge
+	local shortestDistance = Config.AimbotFOV
 
 	for _, v in pairs(Players:GetPlayers()) do
 		if v ~= player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
@@ -275,8 +336,10 @@ local function getClosestPlayer()
 			
 			local screenPos, onScreen = camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
 			if onScreen then
-				local mousePos = UserInputService:GetMouseLocation()
-				local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+				local screenSize = camera.ViewportSize
+				local center = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
+				local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+				
 				if distance < shortestDistance then
 					closestTarget = v
 					shortestDistance = distance
@@ -288,14 +351,14 @@ local function getClosestPlayer()
 end
 
 RunService.RenderStepped:Connect(function()
+	local screenSize = camera.ViewportSize
+	fovRing.Position = UDim2.new(0, screenSize.X / 2, 0, screenSize.Y / 2)
+
 	if Config.AimbotEnabled then
-		local target = getClosestPlayer()
+		local target = getClosestPlayerToCenter()
 		if target and target.Character and target.Character:FindFirstChild("Head") then
-			local targetPos = camera:WorldToViewportPoint(target.Character.Head.Position)
-			local mousePos = UserInputService:GetMouseLocation()
-			if typeof(mousemoverel) == "function" then
-				mousemoverel((targetPos.X - mousePos.X) / Config.AimbotSmoothness, (targetPos.Y - mousePos.Y) / Config.AimbotSmoothness)
-			end
+			local targetCFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
+			camera.CFrame = camera.CFrame:Lerp(targetCFrame, 1 / Config.AimbotSmoothness)
 		end
 	end
 end)
@@ -328,6 +391,14 @@ welcome.Size = UDim2.new(1, 0, 0, 35); welcome.BackgroundTransparency = 1; welco
 -- 2. Aimbot Module
 createToggle(AimbotTab, "Enable Aimbot", false, function(state) Config.AimbotEnabled = state end)
 createSlider(AimbotTab, "Aimbot Smoothness", 1, 15, 1, function(val) Config.AimbotSmoothness = val end)
+createSlider(AimbotTab, "Aimbot FOV Size", 30, 500, 100, function(val) 
+	Config.AimbotFOV = val 
+	fovRing.Size = UDim2.new(0, val * 2, 0, val * 2)
+end)
+createToggle(AimbotTab, "Show FOV Ring", true, function(state) 
+	Config.ShowFOV = state 
+	fovRing.Visible = state
+end)
 createToggle(AimbotTab, "Team Check", false, function(state) Config.TeamCheck = state end)
 
 -- 3. Visuals Module
@@ -346,7 +417,73 @@ createToggle(Visual, "Night Vision", false, function(state)
 	end
 end)
 
--- 4. Skinchanger Module
+-- 4. Skinchanger Module (NEUE MANUELLE KLON-METHODE)
+local targetContainer = Instance.new("Frame")
+targetContainer.Size = UDim2.new(1, -10, 0, 110); targetContainer.BackgroundColor3 = Theme.ButtonBG; targetContainer.Parent = SkinchangerTab
+Instance.new("UICorner", targetContainer).CornerRadius = UDim.new(0, 8)
+local targetStroke = Instance.new("UIStroke", targetContainer); targetStroke.Color = Theme.Accent; targetStroke.Thickness = 1; targetStroke.Transparency = 0.8
+
+local skinLabel = Instance.new("TextLabel")
+skinLabel.Size = UDim2.new(1, -30, 0, 30); skinLabel.Position = UDim2.new(0, 15, 0, 5); skinLabel.BackgroundTransparency = 1
+skinLabel.Text = "Clone Player Outfit (Username or ID)"; skinLabel.Font = Theme.FontMedium; skinLabel.TextSize = 14; skinLabel.TextColor3 = Theme.TextMain; skinLabel.TextXAlignment = Enum.TextXAlignment.Left; skinLabel.Parent = targetContainer
+
+local skinInput = Instance.new("TextBox")
+skinInput.Size = UDim2.new(1, -30, 0, 30); skinInput.Position = UDim2.new(0, 15, 0, 35); skinInput.BackgroundColor3 = Theme.SidebarBG
+skinInput.Font = Theme.FontMedium; skinInput.TextSize = 14; skinInput.TextColor3 = Theme.TextMain; skinInput.Text = ""; skinInput.PlaceholderText = "Enter Username or UserID here..."
+skinInput.ClearTextOnFocus = true; skinInput.Parent = targetContainer
+Instance.new("UICorner", skinInput).CornerRadius = UDim.new(0, 6)
+local inputStroke = Instance.new("UIStroke", skinInput); inputStroke.Color = Theme.Accent; inputStroke.Thickness = 1; inputStroke.Transparency = 0.9
+
+local cloneBtn = Instance.new("TextButton")
+cloneBtn.Size = UDim2.new(1, -30, 0, 30); cloneBtn.Position = UDim2.new(0, 15, 0, 72); cloneBtn.BackgroundColor3 = Theme.ButtonBG
+cloneBtn.Text = "Clone Outfit"; cloneBtn.Font = Theme.FontBold; cloneBtn.TextSize = 13; cloneBtn.TextColor3 = Theme.Accent; cloneBtn.Parent = targetContainer
+Instance.new("UICorner", cloneBtn).CornerRadius = UDim.new(0, 6)
+local btnStroke = Instance.new("UIStroke", cloneBtn); btnStroke.Color = Theme.Accent; btnStroke.Thickness = 1; btnStroke.Transparency = 0.6
+
+cloneBtn.MouseEnter:Connect(function() TweenService:Create(cloneBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.ButtonHover}):Play() end)
+cloneBtn.MouseLeave:Connect(function() TweenService:Create(cloneBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.ButtonBG}):Play() end)
+
+cloneBtn.MouseButton1Click:Connect(function()
+	local query = skinInput.Text
+	if query == "" then notify("Error: Input is empty!") return end
+	
+	local targetId = nil
+	local success, _ = pcall(function() targetId = tonumber(query) or Players:GetUserIdFromNameAsync(query) end)
+	
+	if success and targetId then
+		local myChar = player.Character
+		if myChar then
+			-- Sicheres Laden der Charakter-Modell-Dateien von Roblox
+			local model = Players:CreateHumanoidModelFromUserId(targetId)
+			if model then
+				-- Lösche deine aktuelle Kleidung, Hüte, Haare & Körperfarben
+				for _, obj in pairs(myChar:GetChildren()) do
+					if obj:IsA("Shirt") or obj:IsA("Pants") or obj:IsA("Accessory") or obj:IsA("ShirtGraphic") or obj:IsA("BodyColors") then
+						obj:Destroy()
+					end
+				end
+				
+				-- Kopiere alles Neue aus dem geladenen Modell
+				for _, obj in pairs(model:GetChildren()) do
+					if obj:IsA("Shirt") or obj:IsA("Pants") or obj:IsA("ShirtGraphic") or obj:IsA("BodyColors") then
+						obj:Clone().Parent = myChar
+					elseif obj:IsA("Accessory") then
+						-- Lässt Hüte/Haare per Roblox-Engine an den Kopf anpassen
+						myChar.Humanoid:AddAccessory(obj:Clone())
+					end
+				end
+				
+				model:Destroy()
+				notify("Look applied successfully!")
+			else
+				notify("Error loading character assets!")
+			end
+		end
+	else
+		notify("Player not found! Check spelling/ID.")
+	end
+end)
+
 createActionButton(SkinchangerTab, "Equip Classic Suit", function()
 	local char = player.Character
 	if char then
@@ -366,23 +503,19 @@ createActionButton(SkinchangerTab, "Clear Accessories (FPS Boost)", function()
 	end
 end)
 
--- 5. Skybox Module (Zusammengeführt & Integriert)
--- Fügt einen Reset-Button hinzu, um die originale Skybox wiederherzustellen
+-- 5. Skybox Module
 createActionButton(SkyboxTab, "♻️ Reset Skybox to Default", function()
 	for _, v in pairs(Lighting:GetChildren()) do 
 		if v:IsA("Sky") then v:Destroy() end 
 	end
 end)
 
--- Generiert automatisch stylische Buttons für alle Texturen aus dem Skyboxes-Table
 for skyName, skyData in pairs(Skyboxes) do
 	createActionButton(SkyboxTab, "Apply " .. skyName, function()
-		-- Löscht vorhandene Skyboxen, um Texturen-Clashes zu vermeiden
 		for _, v in pairs(Lighting:GetChildren()) do 
 			if v:IsA("Sky") then v:Destroy() end 
 		end
 		
-		-- Erstellt die neue Custom Skybox
 		local s = Instance.new("Sky", Lighting)
 		s.SkyboxBk = skyData.SkyboxBk
 		s.SkyboxDn = skyData.SkyboxDn
