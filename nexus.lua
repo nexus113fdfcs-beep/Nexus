@@ -365,10 +365,11 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ------------------------------------------------
--- EMERGENCY HAMBURG - SCOPE & FORWARD ZOOM SYSTEM
+-- EMERGENCY HAMBURG - SCOPE & FORWARD ZOOM SYSTEM (SMOOTHENED)
 ------------------------------------------------
 local defaultFOV = 70
 local zoomFOV = 25
+local zoomSmoothness = 0.06 -- Kleinerer Wert = geschmeidigerer Zoom-Übergang beim Zielen
 
 RunService.Heartbeat:Connect(function()
     local c = player.Character
@@ -403,9 +404,11 @@ RunService.RenderStepped:Connect(function()
         if currentTool.Name:lower():find("sniper") or currentTool:IsA("Sniper") then
             local isAiming = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
             if isAiming then
-                camera.FieldOfView = camera.FieldOfView + (zoomFOV - camera.FieldOfView) * 0.25
+                -- Gleitet sanft rein
+                camera.FieldOfView = camera.FieldOfView + (zoomFOV - camera.FieldOfView) * zoomSmoothness
             else
-                camera.FieldOfView = camera.FieldOfView + (defaultFOV - camera.FieldOfView) * 0.25
+                -- Gleitet sanft raus
+                camera.FieldOfView = camera.FieldOfView + (defaultFOV - camera.FieldOfView) * zoomSmoothness
             end
             return
         end
