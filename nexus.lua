@@ -367,9 +367,9 @@ end)
 ------------------------------------------------
 -- EMERGENCY HAMBURG - SCOPE & FORWARD ZOOM SYSTEM (SMOOTHENED)
 ------------------------------------------------
-local defaultFOV = 70
+local defaultFOV = 60
 local zoomFOV = 25
-local zoomSmoothness = 0.06 -- Kleinerer Wert = geschmeidigerer Zoom-Übergang beim Zielen
+local zoomSmoothness = 0.01 -- Kleinerer Wert = geschmeidigerer Zoom-Übergang beim Zielen
 
 RunService.Heartbeat:Connect(function()
     local c = player.Character
