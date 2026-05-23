@@ -4,10 +4,13 @@ local player = Players.LocalPlayer
 -- LOGIN SYSTEM
 ------------------------------------------------
 ------------------------------------------------
--- LOGIN SYSTEM MIT users.json
+-- LOGIN SYSTEM MIT ROBLOX USERNAME CHECK
 ------------------------------------------------
 
+local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
 
 local USERS_URL = "https://raw.githubusercontent.com/nexus113fdfcs-beep/Nexus/refs/heads/main/users.json"
 
@@ -22,7 +25,7 @@ frame.Position = UDim2.new(0.5, -150, 0.5, -110)
 frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 frame.Parent = loginGui
 
-local corner = Instance.new("UICorner", frame)
+Instance.new("UICorner", frame)
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1,0,0,40)
@@ -36,7 +39,7 @@ title.Parent = frame
 local userBox = Instance.new("TextBox")
 userBox.Size = UDim2.new(0,260,0,40)
 userBox.Position = UDim2.new(0,20,0,60)
-userBox.PlaceholderText = "USERNAME"
+userBox.PlaceholderText = "ROBLOX USERNAME"
 userBox.Text = ""
 userBox.TextColor3 = Color3.new(1,1,1)
 userBox.BackgroundColor3 = Color3.fromRGB(35,35,35)
@@ -79,6 +82,24 @@ status.Parent = frame
 local loggedIn = false
 
 local function checkLogin(username, key)
+
+    -- CHECK OB ECHTER ROBLOX ACCOUNT
+    local successUser = pcall(function()
+        Players:GetUserIdFromNameAsync(username)
+    end)
+
+    if not successUser then
+        status.Text = "Invalid Roblox username"
+        return false
+    end
+
+    -- CHECK OB USERNAME ZUM SPIELER GEHOERT
+    if username:lower() ~= player.Name:lower() then
+        status.Text = "Use your own Roblox username"
+        return false
+    end
+
+    -- USERS.JSON LADEN
     local success, response = pcall(function()
         return game:HttpGet(USERS_URL)
     end)
@@ -91,7 +112,7 @@ local function checkLogin(username, key)
     local data = HttpService:JSONDecode(response)
 
     for _, user in pairs(data) do
-        if user.username == username and user.key == key then
+        if user.username:lower() == username:lower() and user.key == key then
             return true
         end
     end
@@ -100,6 +121,7 @@ local function checkLogin(username, key)
 end
 
 loginButton.MouseButton1Click:Connect(function()
+
     local username = userBox.Text
     local key = passBox.Text
 
