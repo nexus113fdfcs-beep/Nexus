@@ -1,6 +1,5 @@
 -- Der Loader, den deine Nutzer ausführen:
 local Player = game:GetService("Players").LocalPlayer
-local WhitelistURL = "https://raw.githubusercontent.com/nexus113fdfcs-beep/Nexus/refs/heads/main/whitelist.txt"
 local ScriptURL = "https://raw.githubusercontent.com/nexus113fdfcs-beep/Nexus/refs/heads/main/nexus.lua"
 
 local function loadNexus()
