@@ -2,37 +2,119 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 ------------------------------------------------
--- GITHUB ONLINE WHITELIST SYSTEM
+-- LOGIN SYSTEM
 ------------------------------------------------
--- ERSETZE DIESEN LINK MIT DEINEM RAW-GITHUB-LINK:
-local WHITELIST_URL = "https://raw.githubusercontent.com/nexus113fdfcs-beep/Nexus/refs/heads/main/whitelist.txt"
+------------------------------------------------
+-- LOGIN SYSTEM MIT users.json
+------------------------------------------------
 
-local function checkWhitelist()
-    local success, content = pcall(function()
-        return game:HttpGet(WHITELIST_URL)
+local HttpService = game:GetService("HttpService")
+
+local USERS_URL = "https://raw.githubusercontent.com/nexus113fdfcs-beep/Nexus/refs/heads/main/users.json"
+
+local loginGui = Instance.new("ScreenGui")
+loginGui.Name = "NexusLogin"
+loginGui.ResetOnSpawn = false
+loginGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 220)
+frame.Position = UDim2.new(0.5, -150, 0.5, -110)
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+frame.Parent = loginGui
+
+local corner = Instance.new("UICorner", frame)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "NEXUS LOGIN"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 28
+title.Parent = frame
+
+local userBox = Instance.new("TextBox")
+userBox.Size = UDim2.new(0,260,0,40)
+userBox.Position = UDim2.new(0,20,0,60)
+userBox.PlaceholderText = "USERNAME"
+userBox.Text = ""
+userBox.TextColor3 = Color3.new(1,1,1)
+userBox.BackgroundColor3 = Color3.fromRGB(35,35,35)
+userBox.Parent = frame
+
+Instance.new("UICorner", userBox)
+
+local passBox = Instance.new("TextBox")
+passBox.Size = UDim2.new(0,260,0,40)
+passBox.Position = UDim2.new(0,20,0,110)
+passBox.PlaceholderText = "PASSWORD / KEY"
+passBox.Text = ""
+passBox.TextColor3 = Color3.new(1,1,1)
+passBox.BackgroundColor3 = Color3.fromRGB(35,35,35)
+passBox.ClearTextOnFocus = false
+passBox.Parent = frame
+
+Instance.new("UICorner", passBox)
+
+local loginButton = Instance.new("TextButton")
+loginButton.Size = UDim2.new(0,260,0,40)
+loginButton.Position = UDim2.new(0,20,0,160)
+loginButton.Text = "LOGIN"
+loginButton.TextColor3 = Color3.new(1,1,1)
+loginButton.BackgroundColor3 = Color3.fromRGB(0,170,255)
+loginButton.Parent = frame
+
+Instance.new("UICorner", loginButton)
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1,0,0,20)
+status.Position = UDim2.new(0,0,1,5)
+status.BackgroundTransparency = 1
+status.Text = ""
+status.TextColor3 = Color3.new(1,0,0)
+status.Font = Enum.Font.SourceSans
+status.TextSize = 18
+status.Parent = frame
+
+local loggedIn = false
+
+local function checkLogin(username, key)
+    local success, response = pcall(function()
+        return game:HttpGet(USERS_URL)
     end)
 
-    if not success or not content then
-        player:Kick("Nexus Hub v3: Fehler beim Laden der Whitelist von GitHub!")
+    if not success then
+        status.Text = "Failed loading users.json"
         return false
     end
 
-    local userIdStr = tostring(player.UserId)
-    
-    -- Überprüft, ob die User-ID in der GitHub-Datei existiert
-    if not string.find(content, userIdStr) then
-        player:Kick("Nexus Hub v3: Du bist nicht auf der Whitelist! (ID: " .. userIdStr .. ")")
-        return false
+    local data = HttpService:JSONDecode(response)
+
+    for _, user in pairs(data) do
+        if user.username == username and user.key == key then
+            return true
+        end
     end
 
-    return true
+    return false
 end
 
--- Starte den Check. Wenn er fehlschlägt, bricht das restliche Skript ab.
-if not checkWhitelist() then return end
+loginButton.MouseButton1Click:Connect(function()
+    local username = userBox.Text
+    local key = passBox.Text
 
+    if checkLogin(username, key) then
+        loggedIn = true
+        loginGui:Destroy()
+    else
+        status.Text = "False username or password"
+    end
+end)
+
+repeat task.wait() until loggedIn
 ------------------------------------------------
--- RESTE DES SKRIPTS (Wird nur ausgeführt, wenn Whitelist okay ist)
+-- RESTE DES SKRIPTS (Wird nur ausgeführt, wenn login okay ist)
 ------------------------------------------------
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
